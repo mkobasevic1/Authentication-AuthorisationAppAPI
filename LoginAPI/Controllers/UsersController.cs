@@ -4,6 +4,9 @@ using LoginAPI.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -27,19 +30,28 @@ namespace LoginAPI.Controllers
                 return BadRequest();
             }
 
-            var user = await _authContext.Users.FirstOrDefaultAsync(x => x.Username == userObj.Username && x.Password==userObj.Password);
+            var user = await _authContext.Users.FirstOrDefaultAsync(x => x.Username == userObj.Username);
 
             if(user == null)
             {
                 return NotFound(new { Message = "User not found" });
             }
 
+            if(!PasswordHasher.VerifyPassword(userObj.Password, user.Password))
+                return BadRequest(new {Message = "Password is incorect"});
+
+            userObj.Token = CreateJwtToken(userObj);
+
             return Ok( new
-                { Message = "Login Success"});
+                { 
+                    Token = userObj.Token,
+                    Message = "Login Success"
+                });
 
         }
 
         [HttpPost("register")]
+
         public async Task<IActionResult> RegisterUser([FromBody] User userObj)
         {
             if( userObj == null)
@@ -72,6 +84,11 @@ namespace LoginAPI.Controllers
             return Ok(new {Message = "User registered"});
         }
 
+        [HttpGet]
+        public async Task<ActionResult<User>> GetAllUsers()
+        {
+            return Ok(await _authContext.Users.ToListAsync());
+        }
         private async Task<Boolean> CheckUsernameExsistAsync(string username)
         {
             return await _authContext.Users.AnyAsync(x => x.Username == username);
@@ -94,6 +111,29 @@ namespace LoginAPI.Controllers
                 sb.Append("Password must contain special character" + Environment.NewLine);
             
             return sb.ToString();
+        }
+
+        private string CreateJwtToken(User user)
+        {
+            var jwtHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes("verysecretkey.....");
+            var identity = new ClaimsIdentity(new Claim[]
+            {
+                new Claim(ClaimTypes.Role, user.Role),
+                new Claim(ClaimTypes.Name, $"{user.FirstName} {user.LastName}")
+            });
+
+            var credentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256);
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = identity,
+                Expires = DateTime.Now.AddDays(1),
+                SigningCredentials = credentials
+            };
+
+            var token = jwtHandler.CreateToken(tokenDescriptor);
+            return jwtHandler.WriteToken(token);
         }
     }
 }
