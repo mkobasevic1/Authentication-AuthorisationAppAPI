@@ -40,11 +40,11 @@ namespace LoginAPI.Controllers
             if(!PasswordHasher.VerifyPassword(userObj.Password, user.Password))
                 return BadRequest(new {Message = "Password is incorect"});
 
-            userObj.Token = CreateJwtToken(userObj);
+            user.Token = CreateJwtToken(user);
 
             return Ok( new
                 { 
-                    Token = userObj.Token,
+                    Token = user.Token,
                     Message = "Login Success"
                 });
 
