@@ -1,6 +1,7 @@
 ﻿using LoginAPI.Context;
 using LoginAPI.Helpers;
 using LoginAPI.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -84,11 +85,7 @@ namespace LoginAPI.Controllers
             return Ok(new {Message = "User registered"});
         }
 
-        [HttpGet]
-        public async Task<ActionResult<User>> GetAllUsers()
-        {
-            return Ok(await _authContext.Users.ToListAsync());
-        }
+
         private async Task<Boolean> CheckUsernameExsistAsync(string username)
         {
             return await _authContext.Users.AnyAsync(x => x.Username == username);
@@ -134,6 +131,13 @@ namespace LoginAPI.Controllers
 
             var token = jwtHandler.CreateToken(tokenDescriptor);
             return jwtHandler.WriteToken(token);
+        }
+
+        
+        [HttpGet]
+        public async Task<ActionResult<User>> GetAllUsers()
+        {
+            return Ok(await _authContext.Users.ToListAsync());
         }
     }
 }
